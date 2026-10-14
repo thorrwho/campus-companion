@@ -19,15 +19,16 @@ import { Avatar } from '@/components/ui/Avatar'
 import { useAuthStore, DEMO_USER } from '@/store/useAuthStore'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
-import { DEPARTMENTS } from '@/data/departments'
+import { useContentStore } from '@/store/useContentStore'
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuthStore()
   const { registeredEventIds, joinedClubIds, savedLocationIds } = useUserStore()
   const { push: pushToast } = useToastStore()
+  const departments = useContentStore((state) => state.departments)
 
   const currentStudent = user || DEMO_USER
-  const deptInfo = DEPARTMENTS.find((d) => d.code === currentStudent.department)
+  const deptInfo = departments.find((d) => d.code === currentStudent.department)
 
   const handleDownloadId = () => {
     pushToast({

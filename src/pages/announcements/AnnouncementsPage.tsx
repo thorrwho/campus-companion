@@ -11,11 +11,15 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { AnnouncementRow } from '@/components/domain/AnnouncementRow'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
+import { useAuthStore } from '@/store/useAuthStore'
+import { useContentStore } from '@/store/useContentStore'
 import { useSimulatedLoad } from '@/hooks/useSimulatedLoad'
 import { useDebounce } from '@/hooks/useDebounce'
-import { ANNOUNCEMENTS } from '@/data/announcements'
 
 export const AnnouncementsPage: React.FC = () => {
+  const { user } = useAuthStore()
+  const announcements = useContentStore((state) => state.announcements)
+  const announcementCategories = useContentStore((state) => state.announcementCategories)
   const { readAnnouncementIds, markAnnouncementRead, markAllAnnouncementsRead } = useUserStore()
   const { push: pushToast } = useToastStore()
   const { isLoading, hasError, retry } = useSimulatedLoad({ duration: 500 })
@@ -26,16 +30,68 @@ export const AnnouncementsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [unreadOnly, setUnreadOnly] = useState<boolean>(false)
 
+  const userDept = user?.department || 'CSE-AIML'
+  const userSem = user?.semester || 5
+  const departments = useContentStore((state) => state.departments)
+
+  // Filter visible announcements for current student
+  const visibleAnnouncements = useMemo(() => {
+    const now = new Date()
+    return announcements.filter((a) => {
+      // Status filter: only published or scheduled past
+      if (a.status === 'Draft') return false
+      if (a.status === 'Scheduled' && a.publishDateTime && new Date(a.publishDateTime) > now) return false
+
+      // Expiry filter
+      if (a.expiryDate && new Date(a.expiryDate) < now) return false
+
+      // Audience targeting
+      if (a.targetAudience && a.targetAudience.type === 'specific') {
+        const targetDepts = a.targetAudience.departments || []
+        const targetSems = a.targetAudience.semesters || []
+
+        const deptMatch =
+          targetDepts.length === 0 ||
+          targetDepts.some((selectedId) => {
+            const deptObj = departments.find(
+              (d) => d.id === selectedId || d.code === selectedId
+            )
+            return deptObj ? deptObj.code === userDept : selectedId === userDept
+          })
+
+        const semMatch =
+          targetSems.length === 0 ||
+          targetSems.includes(userSem) ||
+          targetSems.includes(Number(userSem))
+
+        if (!deptMatch || !semMatch) return false
+      }
+
+      return true
+    })
+  }, [announcements, departments, userDept, userSem])
+
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: ANNOUNCEMENTS.length }
-    ANNOUNCEMENTS.forEach((a) => {
+    const counts: Record<string, number> = { all: visibleAnnouncements.length }
+    visibleAnnouncements.forEach((a) => {
       counts[a.category] = (counts[a.category] || 0) + 1
     })
     return counts
-  }, [])
+  }, [visibleAnnouncements])
+
+  const categoryTabs = useMemo(() => {
+    return [
+      { id: 'all', label: 'All Notices', count: categoryCounts.all || 0 },
+      ...announcementCategories.map((c) => ({
+        id: c.id,
+        label: c.label,
+        count: categoryCounts[c.id] || 0,
+      })),
+    ]
+  }, [announcementCategories, categoryCounts])
 
   const filteredAnnouncements = useMemo(() => {
-    return ANNOUNCEMENTS.filter((ann) => {
+    return visibleAnnouncements.filter((ann) => {
       // Category filter
       if (selectedCategory !== 'all' && ann.category !== selectedCategory) {
         return false
@@ -51,7 +107,8 @@ export const AnnouncementsPage: React.FC = () => {
       if (debouncedSearch.trim()) {
         const q = debouncedSearch.toLowerCase()
         const matchesTitle = ann.title.toLowerCase().includes(q)
-        const matchesBody = ann.body.some((p) => p.toLowerCase().includes(q))
+        const bodyText = Array.isArray(ann.body) ? ann.body.join(' ') : ann.body
+        const matchesBody = bodyText.toLowerCase().includes(q)
         const matchesBy = ann.postedBy.toLowerCase().includes(q)
         if (!matchesTitle && !matchesBody && !matchesBy) {
           return false
@@ -60,15 +117,17 @@ export const AnnouncementsPage: React.FC = () => {
 
       return true
     }).sort((a, b) => {
-      // Important announcements pinned at the top
+      // Pinned and important announcements at the top
+      if (a.pinned && !b.pinned) return -1
+      if (!a.pinned && b.pinned) return 1
       if (a.isImportant && !b.isImportant) return -1
       if (!a.isImportant && b.isImportant) return 1
       return new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
     })
-  }, [selectedCategory, unreadOnly, debouncedSearch, readAnnouncementIds])
+  }, [visibleAnnouncements, selectedCategory, unreadOnly, debouncedSearch, readAnnouncementIds])
 
   const handleMarkAllRead = () => {
-    markAllAnnouncementsRead(ANNOUNCEMENTS.map((a) => a.id))
+    markAllAnnouncementsRead(visibleAnnouncements.map((a) => a.id))
     pushToast({
       type: 'info',
       message: 'All announcements marked as read.',
@@ -117,14 +176,7 @@ export const AnnouncementsPage: React.FC = () => {
         <Tabs
           activeTab={selectedCategory}
           onChange={setSelectedCategory}
-          tabs={[
-            { id: 'all', label: 'All Notices', count: categoryCounts.all },
-            { id: 'academic', label: 'Academic', count: categoryCounts.academic },
-            { id: 'examination', label: 'Examination', count: categoryCounts.examination },
-            { id: 'placement', label: 'Placement', count: categoryCounts.placement },
-            { id: 'event', label: 'Event', count: categoryCounts.event },
-            { id: 'general', label: 'General', count: categoryCounts.general },
-          ]}
+          tabs={categoryTabs}
         />
       </div>
 

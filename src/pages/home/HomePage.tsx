@@ -25,21 +25,24 @@ import { AnnouncementRow } from '@/components/domain/AnnouncementRow'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
+import { useContentStore } from '@/store/useContentStore'
 import { useSimulatedLoad } from '@/hooks/useSimulatedLoad'
-import { TIMETABLE_SLOTS } from '@/data/timetable'
-import { ANNOUNCEMENTS } from '@/data/announcements'
 import { DayOfWeek } from '@/types'
 
 export const HomePage: React.FC = () => {
   const { user } = useAuthStore()
   const {
-    events,
     registeredEventIds,
     readAnnouncementIds,
     markAnnouncementRead,
     markAllAnnouncementsRead,
   } = useUserStore()
   const { push: pushToast } = useToastStore()
+
+  const timetableSlots = useContentStore((state) => state.timetableSlots)
+  const events = useContentStore((state) => state.events)
+  const announcements = useContentStore((state) => state.announcements)
+  const departments = useContentStore((state) => state.departments)
 
   const { isLoading, hasError, retry } = useSimulatedLoad({ duration: 600 })
 
@@ -67,21 +70,48 @@ export const HomePage: React.FC = () => {
   const userSem = user?.semester || 5
 
   // Filter timetable slots for selected day and department
-  const daySlots = TIMETABLE_SLOTS.filter(
+  const daySlots = timetableSlots.filter(
     (slot) =>
       slot.department === userDept &&
       slot.semester === userSem &&
       slot.day === selectedDay
   ).sort((a, b) => a.start.localeCompare(b.start))
 
-  // Next 3 upcoming events
+  // Next 3 upcoming events (Published or Cancelled, not Draft)
   const upcomingEvents = events
-    .filter((e) => new Date(`${e.date}T${e.endTime}:00`) >= today)
+    .filter((e) => e.status !== 'Draft' && new Date(`${e.date}T${e.endTime}:00`) >= today)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3)
 
-  // Top 4 announcements
-  const latestAnnouncements = ANNOUNCEMENTS.slice(0, 4)
+  // Top 4 announcements: published/scheduled past, matching audience, not expired
+  const latestAnnouncements = announcements
+    .filter((a) => {
+      if (a.status === 'Draft') return false
+      if (a.status === 'Scheduled' && a.publishDateTime && new Date(a.publishDateTime) > today) return false
+      if (a.expiryDate && new Date(a.expiryDate) < today) return false
+      if (a.targetAudience && a.targetAudience.type === 'specific') {
+        const targetDepts = a.targetAudience.departments || []
+        const targetSems = a.targetAudience.semesters || []
+
+        const deptMatch =
+          targetDepts.length === 0 ||
+          targetDepts.some((selectedId) => {
+            const deptObj = departments.find(
+              (d) => d.id === selectedId || d.code === selectedId
+            )
+            return deptObj ? deptObj.code === userDept : selectedId === userDept
+          })
+
+        const semMatch =
+          targetSems.length === 0 ||
+          targetSems.includes(userSem) ||
+          targetSems.includes(Number(userSem))
+
+        if (!deptMatch || !semMatch) return false
+      }
+      return true
+    })
+    .slice(0, 4)
 
   // Registered events within next 48 hours
   const nowTime = today.getTime()

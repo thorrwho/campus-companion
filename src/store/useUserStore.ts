@@ -5,13 +5,12 @@ import {
   Club,
   NotificationItemData,
   NotificationPrefs,
+  Student,
 } from '@/types'
-import { EVENTS } from '@/data/events'
-import { CLUBS } from '@/data/clubs'
-import { NOTIFICATIONS } from '@/data/notifications'
+import { useContentStore } from './useContentStore'
 
 interface UserStoreState {
-  // Dynamic entities whose counts change
+  // Dynamic entities whose counts change (mirrored from content store)
   events: Event[]
   clubs: Club[]
 
@@ -20,19 +19,21 @@ interface UserStoreState {
   joinedClubIds: string[]
   savedLocationIds: string[]
   readAnnouncementIds: string[]
+  readNotificationIds: string[]
+  clearedNotificationIds: string[]
 
   // Notifications
   notifications: NotificationItemData[]
   notificationPrefs: NotificationPrefs
 
   // Actions
-  registerEvent: (eventId: string) => { success: boolean; message: string }
-  cancelEvent: (eventId: string) => { success: boolean; message: string }
+  registerEvent: (eventId: string, student?: Student | null) => { success: boolean; message: string }
+  cancelEvent: (eventId: string, student?: Student | null) => { success: boolean; message: string }
 
-  joinClub: (clubId: string) => { success: boolean; message: string }
-  leaveClub: (clubId: string) => { success: boolean; message: string }
+  joinClub: (clubId: string, student?: Student | null) => { success: boolean; message: string }
+  leaveClub: (clubId: string, student?: Student | null) => { success: boolean; message: string }
 
-  toggleSaveLocation: (locationId: string) => { saved: boolean }
+  toggleSaveLocation: (locationId: string, student?: Student | null) => { saved: boolean }
 
   markAnnouncementRead: (announcementId: string) => void
   markAllAnnouncementsRead: (allIds: string[]) => void
@@ -40,6 +41,7 @@ interface UserStoreState {
   markNotificationRead: (notificationId: string) => void
   markAllNotificationsRead: () => void
   clearNotification: (notificationId: string) => void
+  addNotification: (notif: NotificationItemData) => void
 
   updateNotificationPrefs: (prefs: Partial<NotificationPrefs>) => void
 
@@ -50,6 +52,7 @@ const INITIAL_REGISTERED_EVENTS = ['event-ai-hackathon', 'event-cv-workshop']
 const INITIAL_JOINED_CLUBS = ['club-ai-robotics', 'club-coding']
 const INITIAL_SAVED_LOCATIONS = ['loc-ai-research-lab', 'loc-central-library', 'loc-canteen-main']
 const INITIAL_READ_ANNOUNCEMENTS = ['ann-library-extended-hours', 'ann-techfest-call-for-volunteers']
+const INITIAL_READ_NOTIFICATIONS = ['notif-4', 'notif-5', 'notif-6']
 
 const INITIAL_NOTIFICATION_PREFS: NotificationPrefs = {
   events: true,
@@ -62,66 +65,137 @@ const INITIAL_NOTIFICATION_PREFS: NotificationPrefs = {
 export const useUserStore = create<UserStoreState>()(
   persist(
     (set, get) => ({
-      events: EVENTS,
-      clubs: CLUBS,
+      get events() {
+        return useContentStore.getState().events
+      },
+      get clubs() {
+        return useContentStore.getState().clubs
+      },
 
       registeredEventIds: INITIAL_REGISTERED_EVENTS,
       joinedClubIds: INITIAL_JOINED_CLUBS,
       savedLocationIds: INITIAL_SAVED_LOCATIONS,
       readAnnouncementIds: INITIAL_READ_ANNOUNCEMENTS,
+      readNotificationIds: INITIAL_READ_NOTIFICATIONS,
+      clearedNotificationIds: [],
 
-      notifications: NOTIFICATIONS,
+      get notifications() {
+        const broadcasts = useContentStore.getState().notifications
+        const readIds = get().readNotificationIds
+        const clearedIds = get().clearedNotificationIds
+        const now = new Date()
+
+        return broadcasts
+          .filter((b) => {
+            if (b.status === 'recalled') return false
+            if (clearedIds.includes(b.id)) return false
+            if (b.status === 'sent') return true
+            if (b.status === 'scheduled' && b.scheduledFor) {
+              return new Date(b.scheduledFor) <= now
+            }
+            return false
+          })
+          .map((b) => ({
+            id: b.id,
+            type: b.type,
+            title: b.title,
+            body: b.message,
+            createdAt: b.sentAt || b.createdAt || new Date().toISOString(),
+            read: readIds.includes(b.id),
+            link: b.link || '#',
+          }))
+      },
+
       notificationPrefs: INITIAL_NOTIFICATION_PREFS,
 
-      registerEvent: (eventId: string) => {
-        const { registeredEventIds, events } = get()
-        if (registeredEventIds.includes(eventId)) {
-          return { success: false, message: 'You are already registered for this event.' }
-        }
+      registerEvent: (eventId: string, currentStudent?: Student | null) => {
+        const { registeredEventIds } = get()
+        const contentStore = useContentStore.getState()
+        const targetEvent = contentStore.events.find((e) => e.id === eventId)
 
-        const targetEvent = events.find((e) => e.id === eventId)
         if (!targetEvent) {
           return { success: false, message: 'Event not found.' }
         }
 
-        // Check capacity
+        if (registeredEventIds.includes(eventId)) {
+          return { success: false, message: 'You are already registered for this event.' }
+        }
+
         if (targetEvent.registeredCount >= targetEvent.capacity) {
           return { success: false, message: 'This event is full. Registration is closed.' }
         }
 
-        // Check deadline
         const deadline = new Date(targetEvent.registrationDeadline)
         if (new Date() > deadline) {
           return { success: false, message: 'Registration deadline has passed.' }
         }
 
-        // Update state
-        set({
-          registeredEventIds: [...registeredEventIds, eventId],
-          events: events.map((e) =>
-            e.id === eventId ? { ...e, registeredCount: e.registeredCount + 1 } : e
-          ),
+        // Update student state
+        const updatedRegistered = [...registeredEventIds, eventId]
+        set({ registeredEventIds: updatedRegistered })
+
+        // Update content store event
+        contentStore.updateItem('events', eventId, {
+          registeredCount: targetEvent.registeredCount + 1,
         })
+
+        // Add event registration entry
+        const studentId = currentStudent?.id || 'student-demo'
+        contentStore.createItem('eventRegistrations', {
+          eventId,
+          studentId,
+          registeredAt: new Date().toISOString(),
+          attended: false,
+        })
+
+        // Sync with student record in content store
+        const existingStudent = contentStore.students.find((s) => s.id === studentId)
+        if (existingStudent) {
+          contentStore.updateItem('students', studentId, {
+            registeredEventIds: Array.from(new Set([...(existingStudent.registeredEventIds || []), eventId])),
+          })
+        }
 
         return { success: true, message: `Registered successfully for ${targetEvent.title}` }
       },
 
-      cancelEvent: (eventId: string) => {
-        const { registeredEventIds, events } = get()
+      cancelEvent: (eventId: string, currentStudent?: Student | null) => {
+        const { registeredEventIds } = get()
+        const contentStore = useContentStore.getState()
+        const targetEvent = contentStore.events.find((e) => e.id === eventId)
+
         if (!registeredEventIds.includes(eventId)) {
           return { success: false, message: 'You are not registered for this event.' }
         }
 
-        const targetEvent = events.find((e) => e.id === eventId)
-
+        // Update student state
         set({
           registeredEventIds: registeredEventIds.filter((id) => id !== eventId),
-          events: events.map((e) =>
-            e.id === eventId
-              ? { ...e, registeredCount: Math.max(0, e.registeredCount - 1) }
-              : e
-          ),
         })
+
+        // Update content store event
+        if (targetEvent) {
+          contentStore.updateItem('events', eventId, {
+            registeredCount: Math.max(0, targetEvent.registeredCount - 1),
+          })
+        }
+
+        // Remove registration entry
+        const studentId = currentStudent?.id || 'student-demo'
+        const regToRemove = contentStore.eventRegistrations.find(
+          (r) => r.eventId === eventId && r.studentId === studentId
+        )
+        if (regToRemove) {
+          contentStore.removeItem('eventRegistrations', regToRemove.id)
+        }
+
+        // Sync with student record in content store
+        const existingStudent = contentStore.students.find((s) => s.id === studentId)
+        if (existingStudent) {
+          contentStore.updateItem('students', studentId, {
+            registeredEventIds: (existingStudent.registeredEventIds || []).filter((id) => id !== eventId),
+          })
+        }
 
         return {
           success: true,
@@ -129,20 +203,35 @@ export const useUserStore = create<UserStoreState>()(
         }
       },
 
-      joinClub: (clubId: string) => {
-        const { joinedClubIds, clubs } = get()
+      joinClub: (clubId: string, currentStudent?: Student | null) => {
+        const { joinedClubIds } = get()
+        const contentStore = useContentStore.getState()
+        const targetClub = contentStore.clubs.find((c) => c.id === clubId)
+
         if (joinedClubIds.includes(clubId)) {
           return { success: false, message: 'You are already a member of this club.' }
         }
 
-        const targetClub = clubs.find((c) => c.id === clubId)
-
+        // Update student state
         set({
           joinedClubIds: [...joinedClubIds, clubId],
-          clubs: clubs.map((c) =>
-            c.id === clubId ? { ...c, memberCount: c.memberCount + 1 } : c
-          ),
         })
+
+        // Update content store club
+        if (targetClub) {
+          contentStore.updateItem('clubs', clubId, {
+            memberCount: targetClub.memberCount + 1,
+          })
+        }
+
+        // Sync with student record
+        const studentId = currentStudent?.id || 'student-demo'
+        const existingStudent = contentStore.students.find((s) => s.id === studentId)
+        if (existingStudent) {
+          contentStore.updateItem('students', studentId, {
+            joinedClubIds: Array.from(new Set([...(existingStudent.joinedClubIds || []), clubId])),
+          })
+        }
 
         return {
           success: true,
@@ -150,20 +239,35 @@ export const useUserStore = create<UserStoreState>()(
         }
       },
 
-      leaveClub: (clubId: string) => {
-        const { joinedClubIds, clubs } = get()
+      leaveClub: (clubId: string, currentStudent?: Student | null) => {
+        const { joinedClubIds } = get()
+        const contentStore = useContentStore.getState()
+        const targetClub = contentStore.clubs.find((c) => c.id === clubId)
+
         if (!joinedClubIds.includes(clubId)) {
           return { success: false, message: 'You are not a member of this club.' }
         }
 
-        const targetClub = clubs.find((c) => c.id === clubId)
-
+        // Update student state
         set({
           joinedClubIds: joinedClubIds.filter((id) => id !== clubId),
-          clubs: clubs.map((c) =>
-            c.id === clubId ? { ...c, memberCount: Math.max(0, c.memberCount - 1) } : c
-          ),
         })
+
+        // Update content store club
+        if (targetClub) {
+          contentStore.updateItem('clubs', clubId, {
+            memberCount: Math.max(0, targetClub.memberCount - 1),
+          })
+        }
+
+        // Sync with student record
+        const studentId = currentStudent?.id || 'student-demo'
+        const existingStudent = contentStore.students.find((s) => s.id === studentId)
+        if (existingStudent) {
+          contentStore.updateItem('students', studentId, {
+            joinedClubIds: (existingStudent.joinedClubIds || []).filter((id) => id !== clubId),
+          })
+        }
 
         return {
           success: true,
@@ -171,14 +275,26 @@ export const useUserStore = create<UserStoreState>()(
         }
       },
 
-      toggleSaveLocation: (locationId: string) => {
+      toggleSaveLocation: (locationId: string, currentStudent?: Student | null) => {
         const { savedLocationIds } = get()
         const isSaved = savedLocationIds.includes(locationId)
+        const contentStore = useContentStore.getState()
+        const studentId = currentStudent?.id || 'student-demo'
+        const existingStudent = contentStore.students.find((s) => s.id === studentId)
+
         if (isSaved) {
-          set({ savedLocationIds: savedLocationIds.filter((id) => id !== locationId) })
+          const nextSaved = savedLocationIds.filter((id) => id !== locationId)
+          set({ savedLocationIds: nextSaved })
+          if (existingStudent) {
+            contentStore.updateItem('students', studentId, { savedLocationIds: nextSaved })
+          }
           return { saved: false }
         } else {
-          set({ savedLocationIds: [...savedLocationIds, locationId] })
+          const nextSaved = [...savedLocationIds, locationId]
+          set({ savedLocationIds: nextSaved })
+          if (existingStudent) {
+            contentStore.updateItem('students', studentId, { savedLocationIds: nextSaved })
+          }
           return { saved: true }
         }
       },
@@ -187,34 +303,57 @@ export const useUserStore = create<UserStoreState>()(
         const { readAnnouncementIds } = get()
         if (!readAnnouncementIds.includes(announcementId)) {
           set({ readAnnouncementIds: [...readAnnouncementIds, announcementId] })
+          const contentStore = useContentStore.getState()
+          const ann = contentStore.announcements.find((a) => a.id === announcementId)
+          if (ann) {
+            contentStore.updateItem('announcements', announcementId, {
+              readCount: (ann.readCount || 0) + 1,
+            })
+          }
         }
       },
 
       markAllAnnouncementsRead: (allIds: string[]) => {
-        set({ readAnnouncementIds: Array.from(new Set([...get().readAnnouncementIds, ...allIds])) })
+        const currentRead = get().readAnnouncementIds
+        const newRead = Array.from(new Set([...currentRead, ...allIds]))
+        set({ readAnnouncementIds: newRead })
       },
 
       markNotificationRead: (notificationId: string) => {
-        const { notifications } = get()
-        set({
-          notifications: notifications.map((n) =>
-            n.id === notificationId ? { ...n, read: true } : n
-          ),
-        })
+        const { readNotificationIds } = get()
+        if (!readNotificationIds.includes(notificationId)) {
+          set({ readNotificationIds: [...readNotificationIds, notificationId] })
+          const contentStore = useContentStore.getState()
+          const notif = contentStore.notifications.find((n) => n.id === notificationId)
+          if (notif) {
+            contentStore.updateItem('notifications', notificationId, {
+              readCount: (notif.readCount || 0) + 1,
+            })
+          }
+        }
       },
 
       markAllNotificationsRead: () => {
-        const { notifications } = get()
+        const visibleNotifications = get().notifications
+        const visibleIds = visibleNotifications.map((n) => n.id)
         set({
-          notifications: notifications.map((n) => ({ ...n, read: true })),
+          readNotificationIds: Array.from(new Set([...get().readNotificationIds, ...visibleIds])),
         })
       },
 
       clearNotification: (notificationId: string) => {
-        const { notifications } = get()
-        set({
-          notifications: notifications.filter((n) => n.id !== notificationId),
-        })
+        const { clearedNotificationIds } = get()
+        if (!clearedNotificationIds.includes(notificationId)) {
+          set({
+            clearedNotificationIds: [...clearedNotificationIds, notificationId],
+          })
+        }
+      },
+
+      addNotification: (notif: NotificationItemData) => {
+        set((state) => ({
+          notifications: [notif, ...state.notifications],
+        }))
       },
 
       updateNotificationPrefs: (prefs: Partial<NotificationPrefs>) => {
@@ -225,13 +364,12 @@ export const useUserStore = create<UserStoreState>()(
 
       resetUserData: () => {
         set({
-          events: EVENTS,
-          clubs: CLUBS,
           registeredEventIds: INITIAL_REGISTERED_EVENTS,
           joinedClubIds: INITIAL_JOINED_CLUBS,
           savedLocationIds: INITIAL_SAVED_LOCATIONS,
           readAnnouncementIds: INITIAL_READ_ANNOUNCEMENTS,
-          notifications: NOTIFICATIONS,
+          readNotificationIds: INITIAL_READ_NOTIFICATIONS,
+          clearedNotificationIds: [],
           notificationPrefs: INITIAL_NOTIFICATION_PREFS,
         })
       },

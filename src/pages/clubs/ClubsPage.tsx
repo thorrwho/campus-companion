@@ -12,6 +12,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 import { ClubCard } from '@/components/domain/ClubCard'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
+import { useContentStore } from '@/store/useContentStore'
 import { useSimulatedLoad } from '@/hooks/useSimulatedLoad'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Club, ClubCategory } from '@/types'
@@ -26,7 +27,8 @@ const CLUB_CATEGORIES: { id: string; label: string }[] = [
 ]
 
 export const ClubsPage: React.FC = () => {
-  const { clubs, joinedClubIds, joinClub, leaveClub } = useUserStore()
+  const clubs = useContentStore((state) => state.clubs)
+  const { joinedClubIds, joinClub, leaveClub } = useUserStore()
   const { push: pushToast } = useToastStore()
   const { isLoading, hasError, retry } = useSimulatedLoad({ duration: 500 })
 
@@ -41,6 +43,9 @@ export const ClubsPage: React.FC = () => {
 
   const filteredClubs = useMemo(() => {
     return clubs.filter((club) => {
+      // Inactive clubs hidden from student list
+      if (club.status === 'Inactive') return false
+
       // Tab filter
       if (activeTab === 'joined' && !joinedClubIds.includes(club.id)) {
         return false

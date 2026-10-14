@@ -12,7 +12,7 @@ import { LocationDetailPanel } from '@/components/domain/LocationDetailPanel'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
 import { useDebounce } from '@/hooks/useDebounce'
-import { LOCATIONS } from '@/data/locations'
+import { useContentStore } from '@/store/useContentStore'
 import { Location, LocationType } from '@/types'
 
 const LOCATION_TYPES: { id: string; label: string }[] = [
@@ -33,6 +33,7 @@ export const MapPage: React.FC = () => {
   const { locationId } = useParams<{ locationId?: string }>()
   const navigate = useNavigate()
 
+  const locations = useContentStore((state) => state.locations)
   const { savedLocationIds, toggleSaveLocation } = useUserStore()
   const { push: pushToast } = useToastStore()
 
@@ -45,15 +46,15 @@ export const MapPage: React.FC = () => {
   // Sync route param :locationId if present
   useEffect(() => {
     if (locationId) {
-      const match = LOCATIONS.find((l) => l.id === locationId)
+      const match = locations.find((l) => l.id === locationId)
       if (match) {
         setSelectedLocation(match)
       }
     }
-  }, [locationId])
+  }, [locationId, locations])
 
   const filteredLocations = useMemo(() => {
-    return LOCATIONS.filter((loc) => {
+    return locations.filter((loc) => {
       // Type filter
       if (selectedType !== 'all' && loc.type !== selectedType) {
         return false
@@ -72,7 +73,7 @@ export const MapPage: React.FC = () => {
 
       return true
     })
-  }, [selectedType, debouncedSearch])
+  }, [locations, selectedType, debouncedSearch])
 
   const handleSelectLocation = (loc: Location) => {
     setSelectedLocation(loc)
@@ -133,7 +134,7 @@ export const MapPage: React.FC = () => {
           {/* Results count & Clear */}
           <div className="flex items-center justify-between text-caption text-text-muted px-1">
             <span>
-              Showing {filteredLocations.length} of {LOCATIONS.length} campus places
+              Showing {filteredLocations.length} of {locations.length} campus places
             </span>
             {(Boolean(searchQuery) || selectedType !== 'all') && (
               <Button

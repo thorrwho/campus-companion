@@ -13,6 +13,7 @@ import {
   Trophy,
   Award,
   Sparkles,
+  AlertCircle,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -21,8 +22,7 @@ import { Modal } from '@/components/ui/Modal'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
-import { LOCATIONS } from '@/data/locations'
-import { CLUBS } from '@/data/clubs'
+import { useContentStore } from '@/store/useContentStore'
 import { generateICS } from '@/lib/calendar'
 import { EventCategory } from '@/types'
 
@@ -30,7 +30,11 @@ export const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { events, registeredEventIds, registerEvent, cancelEvent } = useUserStore()
+  const events = useContentStore((state) => state.events)
+  const locations = useContentStore((state) => state.locations)
+  const clubs = useContentStore((state) => state.clubs)
+
+  const { registeredEventIds, registerEvent, cancelEvent } = useUserStore()
   const { push: pushToast } = useToastStore()
 
   const event = events.find((e) => e.id === id)
@@ -50,9 +54,10 @@ export const EventDetailPage: React.FC = () => {
     )
   }
 
-  const location = LOCATIONS.find((l) => l.id === event.locationId)
-  const organizerClub = CLUBS.find((c) => c.id === event.organizerClubId)
+  const location = locations.find((l) => l.id === event.locationId)
+  const organizerClub = clubs.find((c) => c.id === event.organizerClubId)
   const isRegistered = registeredEventIds.includes(event.id)
+  const isCancelled = event.status === 'Cancelled'
 
   const eventDateObj = new Date(`${event.date}T${event.endTime}:00`)
   const isPast = new Date() > eventDateObj
@@ -137,11 +142,15 @@ export const EventDetailPage: React.FC = () => {
               <Badge variant="primary" size="md">
                 {event.category.toUpperCase()}
               </Badge>
-              {isRegistered && (
+              {isCancelled ? (
+                <Badge variant="error">
+                  Event Cancelled
+                </Badge>
+              ) : isRegistered ? (
                 <Badge variant="success" icon={<CheckCircle className="w-3.5 h-3.5" />}>
                   You are registered
                 </Badge>
-              )}
+              ) : null}
             </div>
 
             <h1 className="text-display font-bold text-white tracking-tight leading-tight">
@@ -165,6 +174,19 @@ export const EventDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Cancellation Notice Banner */}
+      {isCancelled && (
+        <div className="p-4 rounded-card bg-status-error/10 border border-status-error/30 text-status-error flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+          <div>
+            <h4 className="font-semibold text-small">This event has been cancelled</h4>
+            <p className="text-small mt-0.5 opacity-90">
+              {event.cancellationReason || 'The organizers have cancelled this campus event. Please check back later.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid: Details + Registration Card */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">

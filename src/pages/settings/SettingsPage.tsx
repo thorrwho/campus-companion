@@ -18,11 +18,13 @@ import { Modal } from '@/components/ui/Modal'
 import { useUserStore } from '@/store/useUserStore'
 import { useAuthStore, DEMO_USER } from '@/store/useAuthStore'
 import { useToastStore } from '@/store/useToastStore'
+import { useContentStore } from '@/store/useContentStore'
 
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate()
   const { notificationPrefs, updateNotificationPrefs, resetUserData } = useUserStore()
   const { user, logout, resetAuth } = useAuthStore()
+  const { resetContentData } = useContentStore()
   const { push: pushToast } = useToastStore()
 
   const currentStudent = user || DEMO_USER
@@ -40,6 +42,7 @@ export const SettingsPage: React.FC = () => {
 
   const handleConfirmReset = () => {
     setIsResetModalOpen(false)
+    resetContentData()
     resetUserData()
     resetAuth()
     pushToast({

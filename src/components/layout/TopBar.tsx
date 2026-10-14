@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Search,
@@ -10,6 +10,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { Popover } from '@/components/ui/Popover'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useUserStore } from '@/store/useUserStore'
 
@@ -23,32 +24,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch }) => {
   const { notifications } = useUserStore()
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
 
   // Dynamic unread notifications count from persisted store
   const unreadCount = notifications.filter((n) => !n.read).length
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsMenuOpen(false)
-      }
-    }
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isMenuOpen) {
-        setIsMenuOpen(false)
-        menuButtonRef.current?.focus()
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isMenuOpen])
 
   const handleLogout = () => {
     setIsMenuOpen(false)
@@ -96,7 +75,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch }) => {
         </Link>
 
         {/* User Menu Trigger */}
-        <div className="relative" ref={menuRef}>
+        <div className="relative">
           <button
             ref={menuButtonRef}
             type="button"
@@ -104,7 +83,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch }) => {
             aria-expanded={isMenuOpen}
             aria-haspopup="menu"
             aria-label="User profile menu"
-            className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-button hover:bg-canvas transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+            className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-button hover:bg-canvas transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 cursor-pointer"
           >
             <Avatar
               initials={user?.avatarInitials || 'CC'}
@@ -118,72 +97,73 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch }) => {
           </button>
 
           {/* User Dropdown Menu */}
-          {isMenuOpen && (
-            <div
-              role="menu"
-              aria-orientation="vertical"
-              className="absolute right-0 mt-2 w-56 bg-surface rounded-card border border-border shadow-overlay py-1.5 z-50 animate-in fade-in slide-in-from-top-1 text-left"
-            >
-              {/* Profile summary header */}
-              <div className="px-4 py-2.5 border-b border-border">
-                <p className="text-small font-semibold text-text-primary truncate">
-                  {user?.name || 'Student Account'}
-                </p>
-                <p className="text-caption text-text-muted truncate mt-0.5">
-                  {user?.email || 'demo@demo.edu'}
-                </p>
-                <p className="text-[11px] font-medium text-primary-600 mt-1 uppercase tracking-wider">
-                  {user?.department || 'CSE'} : Sem {user?.semester || 5}
-                </p>
-              </div>
-
-              {/* Menu links */}
-              <div className="py-1">
-                <Link
-                  to="/profile"
-                  role="menuitem"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2 text-small text-text-primary hover:bg-canvas transition-colors focus-visible:outline-none focus-visible:bg-canvas"
-                >
-                  <User className="w-4 h-4 text-text-muted" aria-hidden="true" />
-                  <span>Profile and Schedule</span>
-                </Link>
-
-                <Link
-                  to="/settings"
-                  role="menuitem"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2 text-small text-text-primary hover:bg-canvas transition-colors focus-visible:outline-none focus-visible:bg-canvas"
-                >
-                  <Settings className="w-4 h-4 text-text-muted" aria-hidden="true" />
-                  <span>Settings and Alerts</span>
-                </Link>
-
-                <Link
-                  to="/styleguide"
-                  role="menuitem"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2 text-small text-text-primary hover:bg-canvas transition-colors focus-visible:outline-none focus-visible:bg-canvas"
-                >
-                  <Palette className="w-4 h-4 text-text-muted" aria-hidden="true" />
-                  <span>Component Styleguide</span>
-                </Link>
-              </div>
-
-              {/* Logout button */}
-              <div className="pt-1 border-t border-border">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-small text-status-error hover:bg-status-error-bg/50 transition-colors focus-visible:outline-none focus-visible:bg-status-error-bg/50 text-left font-medium"
-                >
-                  <LogOut className="w-4 h-4 text-status-error" aria-hidden="true" />
-                  <span>Log out</span>
-                </button>
-              </div>
+          <Popover
+            isOpen={isMenuOpen}
+            onClose={() => setIsMenuOpen(false)}
+            triggerRef={menuButtonRef}
+            width="auto"
+            align="end"
+            className="w-56 py-1.5"
+          >
+            {/* Profile summary header */}
+            <div className="px-4 py-2.5 border-b border-border">
+              <p className="text-small font-semibold text-text-primary truncate">
+                {user?.name || 'Student Account'}
+              </p>
+              <p className="text-caption text-text-muted truncate mt-0.5">
+                {user?.email || 'demo@demo.edu'}
+              </p>
+              <p className="text-[11px] font-medium text-primary-600 mt-1 uppercase tracking-wider">
+                {user?.department || 'CSE'} : Sem {user?.semester || 5}
+              </p>
             </div>
-          )}
+
+            {/* Menu links */}
+            <div className="py-1">
+              <Link
+                to="/profile"
+                role="menuitem"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2 text-small text-text-primary hover:bg-canvas transition-colors focus-visible:outline-none focus-visible:bg-canvas"
+              >
+                <User className="w-4 h-4 text-text-muted" aria-hidden="true" />
+                <span>Profile and Schedule</span>
+              </Link>
+
+              <Link
+                to="/settings"
+                role="menuitem"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2 text-small text-text-primary hover:bg-canvas transition-colors focus-visible:outline-none focus-visible:bg-canvas"
+              >
+                <Settings className="w-4 h-4 text-text-muted" aria-hidden="true" />
+                <span>Settings and Alerts</span>
+              </Link>
+
+              <Link
+                to="/styleguide"
+                role="menuitem"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2 text-small text-text-primary hover:bg-canvas transition-colors focus-visible:outline-none focus-visible:bg-canvas"
+              >
+                <Palette className="w-4 h-4 text-text-muted" aria-hidden="true" />
+                <span>Component Styleguide</span>
+              </Link>
+            </div>
+
+            {/* Logout button */}
+            <div className="pt-1 border-t border-border">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-small text-status-error hover:bg-status-error-bg/50 transition-colors focus-visible:outline-none focus-visible:bg-status-error-bg/50 text-left font-medium cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 text-status-error" aria-hidden="true" />
+                <span>Log out</span>
+              </button>
+            </div>
+          </Popover>
         </div>
       </div>
     </header>

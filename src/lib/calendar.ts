@@ -1,9 +1,10 @@
 import { Event } from '@/types'
-import { LOCATIONS } from '@/data/locations'
+import { useContentStore } from '@/store/useContentStore'
 
 export function generateICS(event: Event): void {
-  const location = LOCATIONS.find((l) => l.id === event.locationId)
-  const locationName = location ? `${location.name}, ${location.building}` : 'Campus Venue'
+  const locations = useContentStore.getState().locations
+  const location = locations.find((l) => l.id === event.locationId)
+  const locationName = location ? `${location.name}, ${location.building}` : 'Location not set'
 
   // Format date and time to iCal format: YYYYMMDDTHHMMSS
   const cleanDate = event.date.replace(/-/g, '')

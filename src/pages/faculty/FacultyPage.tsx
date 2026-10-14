@@ -9,22 +9,13 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { FacultyCard } from '@/components/domain/FacultyCard'
 import { useToastStore } from '@/store/useToastStore'
+import { useContentStore } from '@/store/useContentStore'
 import { useSimulatedLoad } from '@/hooks/useSimulatedLoad'
 import { useDebounce } from '@/hooks/useDebounce'
-import { FACULTY } from '@/data/faculty'
-import { DepartmentCode } from '@/types'
-
-const DEPT_FILTERS: { id: string; label: string }[] = [
-  { id: 'all', label: 'All Departments' },
-  { id: 'CSE', label: 'CSE' },
-  { id: 'CSE-AIML', label: 'CSE-AIML' },
-  { id: 'ECE', label: 'ECE' },
-  { id: 'EEE', label: 'EEE' },
-  { id: 'MECH', label: 'MECH' },
-  { id: 'CIVIL', label: 'CIVIL' },
-]
 
 export const FacultyPage: React.FC = () => {
+  const faculty = useContentStore((state) => state.faculty)
+  const departments = useContentStore((state) => state.departments)
   const { push: pushToast } = useToastStore()
   const { isLoading, hasError, retry } = useSimulatedLoad({ duration: 500 })
 
@@ -33,8 +24,15 @@ export const FacultyPage: React.FC = () => {
 
   const [selectedDept, setSelectedDept] = useState<string>('all')
 
+  const deptFilters = useMemo(() => {
+    return [
+      { id: 'all', label: 'All Departments' },
+      ...departments.map((d) => ({ id: d.code, label: d.code })),
+    ]
+  }, [departments])
+
   const filteredFaculty = useMemo(() => {
-    return FACULTY.filter((prof) => {
+    return faculty.filter((prof) => {
       // Dept filter
       if (selectedDept !== 'all' && prof.departmentId !== selectedDept) {
         return false
@@ -54,7 +52,7 @@ export const FacultyPage: React.FC = () => {
 
       return true
     })
-  }, [selectedDept, debouncedSearch])
+  }, [faculty, selectedDept, debouncedSearch])
 
   const handleCopyEmail = (email: string, e: React.MouseEvent) => {
     e.preventDefault()
@@ -118,12 +116,12 @@ export const FacultyPage: React.FC = () => {
 
       {/* Department Chips */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-        {DEPT_FILTERS.map((dept) => (
+        {deptFilters.map((dept) => (
           <Chip
             key={dept.id}
             label={dept.label}
             selected={selectedDept === dept.id}
-            onClick={() => setSelectedDept(dept.id as DepartmentCode | 'all')}
+            onClick={() => setSelectedDept(dept.id)}
           />
         ))}
       </div>

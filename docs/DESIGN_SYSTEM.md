@@ -6,12 +6,15 @@
 
 ## 1. Design Philosophy
 
-Campus Companion is designed with clarity, accessibility, and modern visual polish at its center. As a student campus platform, readability in outdoor sunlight and rapid task completion between classes take priority.
+Campus Companion is designed with clarity, accessibility, and modern visual polish at its center. The platform accommodates two distinct user contexts:
+1. **Student Companion**: Designed for fast, friction-free daily tasks between classes, high readability in outdoor sunlight, and mobile-first responsive interactions.
+2. **Administrative Portal**: Designed for high data density, structured CRUD workflows, bulk operations, referential integrity feedback, and conflict avoidance without visual clutter.
 
 ### Core Principles
 - **Clarity and High Contrast**: Crisp typography with WCAG AA compliance (4.5:1 for body copy, 3:1 for large headings and UI icons).
 - **Tactile Feedback**: Interactive elements feature smooth micro-animations, clear active states, and explicit keyboard focus rings.
 - **Cognitive Simplicity**: Critical daily tasks (checking next class, viewing map directions, scanning urgent circulars) are one tap away from the home dashboard.
+- **Safe Administrative Mutations**: High-risk mutations require explicit confirmation modals or safety text verification ("DELETE" or "RESET"). All deletions offer a persistent undo window.
 - **Local Autonomy**: All data lives locally with instant optimistic responses and localStorage persistence.
 
 ---
@@ -36,9 +39,9 @@ Campus Companion is designed with clarity, accessibility, and modern visual poli
 - `text-muted` (`#94A3B8`): Timestamps, inactive tabs, placeholder text, search hints.
 
 ### Semantic Status
-- `status-success` (`#10B981`): Confirmed registrations, open facilities, active memberships.
-- `status-warning` (`#F59E0B`): Facilities closing soon, approaching deadlines, high attendance cautions.
-- `status-error` (`#EF4444`): Closed facilities, capacity full events, form validation errors.
+- `status-success` (`#10B981`): Confirmed registrations, open facilities, active memberships, published content.
+- `status-warning` (`#F59E0B`): Facilities closing soon, approaching deadlines, draft records, scheduled circulars.
+- `status-error` (`#EF4444`): Closed facilities, capacity full events, cancelled events, suspended students, validation errors.
 - `status-info` (`#3B82F6`): Neutral circulars, scheduled updates, system advisories.
 
 ---
@@ -85,7 +88,7 @@ Based on a strict 4px grid system:
 ## 5. UI Component Inventory
 
 ### Core Primitives (`src/components/ui/`)
-1. **Button**: Variants (`primary`, `outline`, `ghost`), sizes (`sm`, `md`, `lg`), with loading spinner and icon support.
+1. **Button**: Variants (`primary`, `outline`, `ghost`, `secondary`), sizes (`sm`, `md`, `lg`), with loading spinner and icon support.
 2. **Input & PasswordInput**: Floating focus ring, clear error state, hint slot, left/right icon slots, password visibility toggle.
 3. **SearchBar**: Debounced search input with leading search icon and instant clear button.
 4. **Checkbox**: Keyboard-accessible checkbox with checkmark animation and label pairing.
@@ -100,7 +103,7 @@ Based on a strict 4px grid system:
 13. **EmptyState & ErrorState**: Dedicated empty and failure illustrations with retry / navigation action triggers.
 14. **Skeleton**: Content placeholder loaders for text, circles, and cards.
 
-### Domain Components (`src/components/domain/`)
+### Student Domain Components (`src/components/domain/`)
 1. **TimetableItem**: Period cards with status ("Now", "Up Next", "Completed") and room directions link.
 2. **EventCard**: Calendar date badge, capacity meter, registered tag, and registration actions.
 3. **AnnouncementRow**: Official circulars with important pin, unread dot, and date stamp.
@@ -110,3 +113,42 @@ Based on a strict 4px grid system:
 7. **FacultyCard**: Professor directory card with email copy button, office hours, and subjects.
 8. **FacilityCard**: Real-time status calculator ("Open until 20:00", "Closed", "Closes in 45m"), schedule table, and amenities.
 9. **SearchModal**: Global CommandPalette (`Cmd+K` / `Ctrl+K`) with live indexing across 6 entity types.
+
+### Shared Admin Components (`src/components/admin/`)
+
+1. **Layout & Containers**:
+   - `AdminLayout`: Sticky desktop sidebar, top header with breadcrumbs, role badge, quick search launcher, and quick logout.
+   - `AdminForm`: Card-wrapped structured form layout with header title, description, and sticky bottom action toolbar with cancel/submit/delete buttons.
+   - `FormSection`: Clean bordered grouping container supporting optional collapsible toggle and description.
+
+2. **Form Input Primitives**:
+   - `TextField`: Validated single-line input with optional prefix icon, helper text, and error states.
+   - `TextArea`: Multi-line text field with auto-resize and character limit guidance.
+   - `RichTextLite`: Markdown editor equipped with formatting toolbar (H3, Bold, Italic, Bullet List, Link), word count, and split-view student preview mode.
+   - `SelectField`: Native styled dropdown select with custom focus rings.
+   - `SearchableSelect`: Combobox with integrated filter search, sub-labels, and category badges (ideal for selecting campus locations or faculties).
+   - `MultiSelectField`: Multi-item picker with toggleable chips and item counters.
+   - `DatePickerField` & `TimePickerField`: Native HTML5 pickers styled with custom icons and clear states.
+   - `NumberField`: Numeric input with min, max, step controls, and unit badges.
+   - `ToggleField`: Card-style boolean toggle switch with title and explanatory helper text.
+   - `TagInputField`: Pill-based tag editor supporting Enter-to-add, duplicate prevention, and one-click removal.
+   - `ListEditor`: Reorderable item list editor with add, edit, and trash actions.
+   - `ColorDotPicker`: Curated hex palette picker with active ring indicator.
+   - `IconPicker`: Curated Lucide icon grid with visual preview and selection rings.
+   - `MapPinPicker`: Interactive 2D campus ground map canvas where admins click to visually place map pins and capture percentage coordinates (`mapX`, `mapY`).
+
+3. **Data Display & Interaction**:
+   - `DataTable`: Generic data grid with column sorting, client search filter, multi-field dropdown filters, checkbox selection, bulk actions toolbar, pagination, custom row actions dropdown, and empty states.
+   - `StatusBadge`: Semantic status pill supporting Published, Scheduled, Draft, Archived, Active, Suspended, Open, Closed, Limited, Attended, and Cancelled.
+   - `ConfirmDialog`: High-safety confirmation modal supporting danger, warning, and info variants, with support for required confirmation words (e.g. typing "DELETE" or "RESET").
+   - `PreviewPanel`: Slide-out panel simulating the student-facing view in real time as administrators draft or edit content.
+   - `AdminSearchModal`: Administrative Command Palette (`Ctrl+K` / `Cmd+K`) indexing all administrative routes, quick actions, and content collections.
+
+---
+
+## 6. Accessibility & Compliance Standards
+
+- **WCAG AA Compliance**: High-contrast ratios guaranteed for all text and UI boundaries.
+- **Focus Rings**: Standardized outline using `focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2`.
+- **Keyboard Navigation**: All interactive elements (table headers, combobox items, map pins, modals, and switches) are fully navigable via standard keyboard controls (Tab, Arrow keys, Enter, Space, Escape).
+- **Accessible Data Tables**: Complex visual charts in the Admin Dashboard provide toggleable accessible data table alternatives for screen readers.

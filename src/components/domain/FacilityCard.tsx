@@ -4,7 +4,7 @@ import { Clock, MapPin, ArrowRight, Phone } from 'lucide-react'
 import { Facility, FacilityStatus } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { LOCATIONS } from '@/data/locations'
+import { useContentStore } from '@/store/useContentStore'
 import { cn } from '@/lib/utils'
 
 export interface ComputedFacilityStatus {
@@ -14,10 +14,21 @@ export interface ComputedFacilityStatus {
 }
 
 export function computeFacilityStatus(facility: Facility): ComputedFacilityStatus {
+  // Support manual status override from admin
+  if (facility.statusOverride === 'force_open') {
+    return { status: 'open', label: facility.statusMessage || 'Open', badgeVariant: 'success' }
+  }
+  if (facility.statusOverride === 'force_closed') {
+    return { status: 'closed', label: facility.statusMessage || 'Closed', badgeVariant: 'error' }
+  }
+  if (facility.statusOverride === 'limited') {
+    return { status: 'limited', label: facility.statusMessage || 'Limited Hours', badgeVariant: 'warning' }
+  }
+
   const now = new Date()
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const todayDay = days[now.getDay()]
-  const hoursStr = facility.openHours[todayDay]
+  const hoursStr = facility.openHours?.[todayDay]
 
   if (!hoursStr || hoursStr.toLowerCase().includes('closed')) {
     return { status: 'closed', label: 'Closed Today', badgeVariant: 'error' }
@@ -59,7 +70,8 @@ interface FacilityCardProps {
 }
 
 export const FacilityCard: React.FC<FacilityCardProps> = ({ facility, className }) => {
-  const location = LOCATIONS.find((l) => l.id === facility.locationId)
+  const locations = useContentStore((state) => state.locations)
+  const location = locations.find((l) => l.id === facility.locationId)
   const computed = computeFacilityStatus(facility)
 
   return (

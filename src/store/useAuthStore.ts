@@ -48,6 +48,18 @@ export const useAuthStore = create<AuthState>()(
           return { success: false, error: 'Incorrect email or password. Please try again.' }
         }
 
+        // Check if student account is suspended in content store
+        const { useContentStore } = await import('./useContentStore')
+        const matchingStudent = useContentStore.getState().students.find(
+          (s) => s.email.toLowerCase() === cleanEmail
+        )
+        if (matchingStudent && matchingStudent.status === 'Suspended') {
+          return {
+            success: false,
+            error: 'Account suspended: Your access is currently restricted. Please contact the Student Affairs office.',
+          }
+        }
+
         // Demo login or simulated matching user
         let loggedInUser = get().user
         if (!loggedInUser || loggedInUser.email.toLowerCase() !== cleanEmail) {

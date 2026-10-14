@@ -4,7 +4,7 @@ import { MapPin, Users, CheckCircle, Clock } from 'lucide-react'
 import { Event } from '@/types'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
-import { LOCATIONS } from '@/data/locations'
+import { useContentStore } from '@/store/useContentStore'
 import { cn } from '@/lib/utils'
 
 interface EventCardProps {
@@ -14,7 +14,9 @@ interface EventCardProps {
 }
 
 export const EventCard: React.FC<EventCardProps> = ({ event, isRegistered = false, className }) => {
-  const location = LOCATIONS.find((l) => l.id === event.locationId)
+  const locations = useContentStore((state) => state.locations)
+  const location = locations.find((l) => l.id === event.locationId)
+  const isCancelled = event.status === 'Cancelled'
   const eventDate = new Date(`${event.date}T00:00:00`)
   const isPast = new Date() > new Date(`${event.date}T${event.endTime}:00`)
   const isFull = event.registeredCount >= event.capacity
@@ -54,7 +56,9 @@ export const EventCard: React.FC<EventCardProps> = ({ event, isRegistered = fals
           </div>
 
           <div>
-            {isRegistered ? (
+            {isCancelled ? (
+              <Badge variant="error">Cancelled</Badge>
+            ) : isRegistered ? (
               <Badge variant="success" icon={<CheckCircle className="w-3 h-3" />}>
                 Registered
               </Badge>
@@ -83,7 +87,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, isRegistered = fals
           <div className="flex items-center justify-between text-caption text-text-secondary">
             <span className="flex items-center gap-1.5 truncate max-w-[65%]" title={location?.name}>
               <MapPin className="w-3.5 h-3.5 text-text-muted shrink-0" aria-hidden="true" />
-              <span className="truncate">{location?.name || 'Campus Venue'}</span>
+              <span className="truncate">{location?.name || 'Location not set'}</span>
             </span>
             <span className="flex items-center gap-1 shrink-0 text-text-muted font-medium">
               <Users className="w-3.5 h-3.5" aria-hidden="true" />

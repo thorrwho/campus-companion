@@ -10,22 +10,15 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EventCard } from '@/components/domain/EventCard'
 import { useUserStore } from '@/store/useUserStore'
+import { useContentStore } from '@/store/useContentStore'
 import { useSimulatedLoad } from '@/hooks/useSimulatedLoad'
 import { useDebounce } from '@/hooks/useDebounce'
 import { EventCategory } from '@/types'
 
-const CATEGORIES: { id: string; label: string }[] = [
-  { id: 'all', label: 'All Categories' },
-  { id: 'workshop', label: 'Workshops' },
-  { id: 'hackathon', label: 'Hackathons' },
-  { id: 'seminar', label: 'Seminars' },
-  { id: 'cultural', label: 'Cultural' },
-  { id: 'competition', label: 'Competitions' },
-  { id: 'sports', label: 'Sports' },
-]
-
 export const EventsPage: React.FC = () => {
-  const { events, registeredEventIds } = useUserStore()
+  const events = useContentStore((state) => state.events)
+  const eventCategories = useContentStore((state) => state.eventCategories)
+  const { registeredEventIds } = useUserStore()
   const { isLoading, hasError, retry } = useSimulatedLoad({ duration: 500 })
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -36,9 +29,16 @@ export const EventsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'registered'>('all')
   const [sortOrder, setSortOrder] = useState<'soonest' | 'latest'>('soonest')
 
+  const categories = useMemo(() => {
+    return [{ id: 'all', label: 'All Categories' }, ...eventCategories]
+  }, [eventCategories])
+
   const filteredEvents = useMemo(() => {
     return events
       .filter((event) => {
+        // Hide draft events from students
+        if (event.status === 'Draft') return false
+
         // Tab filter: all or registered only
         if (activeTab === 'registered' && !registeredEventIds.includes(event.id)) {
           return false
@@ -201,7 +201,7 @@ export const EventsPage: React.FC = () => {
 
       {/* Category Chips Carousel */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <Chip
             key={cat.id}
             label={cat.label}

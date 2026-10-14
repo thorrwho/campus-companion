@@ -17,17 +17,18 @@ import { Badge } from '@/components/ui/Badge'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
-import { ANNOUNCEMENTS } from '@/data/announcements'
+import { useContentStore } from '@/store/useContentStore'
 
 export const AnnouncementDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const announcements = useContentStore((state) => state.announcements)
   const { markAnnouncementRead } = useUserStore()
   const { push: pushToast } = useToastStore()
 
-  const currentIndex = ANNOUNCEMENTS.findIndex((a) => a.id === id)
-  const announcement = ANNOUNCEMENTS[currentIndex]
+  const currentIndex = announcements.findIndex((a) => a.id === id)
+  const announcement = announcements[currentIndex]
 
   // Automatically mark announcement as read when opened
   useEffect(() => {
@@ -48,9 +49,9 @@ export const AnnouncementDetailPage: React.FC = () => {
     )
   }
 
-  const prevAnnouncement = currentIndex > 0 ? ANNOUNCEMENTS[currentIndex - 1] : null
+  const prevAnnouncement = currentIndex > 0 ? announcements[currentIndex - 1] : null
   const nextAnnouncement =
-    currentIndex < ANNOUNCEMENTS.length - 1 ? ANNOUNCEMENTS[currentIndex + 1] : null
+    currentIndex < announcements.length - 1 ? announcements[currentIndex + 1] : null
 
   const handleDownloadAttachment = (filename: string) => {
     pushToast({
@@ -138,7 +139,10 @@ export const AnnouncementDetailPage: React.FC = () => {
 
         {/* Full Notice Body Paragraphs */}
         <div className="space-y-4 text-body text-text-secondary leading-relaxed pt-2">
-          {announcement.body.map((paragraph, index) => (
+          {(Array.isArray(announcement.body)
+            ? announcement.body
+            : announcement.body.split('\n\n')
+          ).map((paragraph, index) => (
             <p key={index} className="text-justify sm:text-left">
               {paragraph}
             </p>

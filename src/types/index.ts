@@ -1,4 +1,6 @@
-export type DepartmentCode = 'CSE' | 'CSE-AIML' | 'ECE' | 'EEE' | 'MECH' | 'CIVIL'
+export type DepartmentCode = 'CSE' | 'CSE-AIML' | 'ECE' | 'EEE' | 'MECH' | 'CIVIL' | (string & {})
+
+export type UserRole = 'student' | 'admin'
 
 export interface Student {
   id: string
@@ -16,12 +18,25 @@ export interface Student {
   cgpa?: string
   attendance?: string
   section?: string
+  status?: 'Active' | 'Suspended'
+  role?: UserRole
+  joinedAt?: string
+  registeredEventIds?: string[]
+  joinedClubIds?: string[]
+  savedLocationIds?: string[]
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
 export interface Department {
   id: string
   name: string
   code: DepartmentCode
+  semestersOffered?: number // 1 to 8
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
 export type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday'
@@ -38,6 +53,9 @@ export interface TimetableSlot {
   faculty: string
   department: DepartmentCode
   semester: number
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
 export type LocationType =
@@ -63,6 +81,9 @@ export interface Location {
   mapY: number // percentage (0 to 100)
   directions: string[]
   openHours?: string
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
 export type EventCategory =
@@ -72,6 +93,7 @@ export type EventCategory =
   | 'cultural'
   | 'competition'
   | 'sports'
+  | (string & {})
 
 export interface Event {
   id: string
@@ -87,9 +109,22 @@ export interface Event {
   registeredCount: number
   tags: string[]
   registrationDeadline: string // ISO date string
+  status?: 'Draft' | 'Published' | 'Cancelled'
+  bannerIcon?: string
+  bannerColor?: string
+  registrationOpen?: boolean
+  cancellationReason?: string
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
-export type ClubCategory = 'technical' | 'cultural' | 'sports' | 'social' | 'literary'
+export type ClubCategory = 'technical' | 'cultural' | 'sports' | 'social' | 'literary' | (string & {})
+
+export interface ClubSocialLink {
+  platform: string
+  url: string
+}
 
 export interface Club {
   id: string
@@ -102,6 +137,15 @@ export interface Club {
   meetingSchedule: string
   coordinator: string
   upcomingEventIds: string[]
+  icon?: string
+  color?: string
+  studentLeadName?: string
+  socialLinks?: ClubSocialLink[]
+  acceptingMembers?: boolean
+  status?: 'Active' | 'Inactive'
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
 export type AnnouncementCategory =
@@ -110,16 +154,32 @@ export type AnnouncementCategory =
   | 'placement'
   | 'event'
   | 'general'
+  | (string & {})
+
+export interface TargetAudience {
+  type: 'all' | 'specific'
+  departments?: DepartmentCode[]
+  semesters?: number[]
+}
 
 export interface Announcement {
   id: string
   title: string
   category: AnnouncementCategory
-  body: string[] // 2 to 4 paragraphs
+  body: string[] | string // supports paragraphs array or markdown string
   postedBy: string
   postedAt: string // ISO date string
   isImportant: boolean
   attachmentName?: string
+  pinned?: boolean
+  targetAudience?: TargetAudience
+  status?: 'Draft' | 'Published' | 'Scheduled' | 'Archived'
+  publishDateTime?: string
+  expiryDate?: string
+  readCount?: number
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
 export interface Faculty {
@@ -132,20 +192,35 @@ export interface Faculty {
   officeHours: string
   subjects: string[]
   initials: string
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
 export type FacilityStatus = 'open' | 'closed' | 'limited'
+
+export interface FacilityDaySchedule {
+  closed: boolean
+  openTime: string
+  closeTime: string
+}
 
 export interface Facility {
   id: string
   name: string
   type: string
   locationId: string
-  openHours: Record<string, string> // e.g. { "Monday to Friday": "08:00 - 20:00", ... }
+  openHours: Record<string, string> // e.g. { "Monday to Friday": "08:00 - 20:00" }
+  weeklyHours?: Record<string, FacilityDaySchedule>
   services: string[]
   contact: string
   status: FacilityStatus
+  statusOverride?: 'auto' | 'force_open' | 'force_closed' | 'limited'
+  statusMessage?: string
   notes?: string
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
 }
 
 export type NotificationType = 'event' | 'announcement' | 'club' | 'reminder' | 'system'
@@ -158,6 +233,64 @@ export interface NotificationItemData {
   createdAt: string
   read: boolean
   link: string
+}
+
+export interface BroadcastNotification {
+  id: string
+  title: string
+  message: string
+  type: NotificationType
+  link?: string
+  audience: TargetAudience
+  status: 'sent' | 'scheduled' | 'recalled'
+  scheduledFor?: string // ISO date string
+  sentAt?: string // ISO date string
+  recipientsCount: number
+  readCount: number
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
+}
+
+export interface EventRegistration {
+  id: string
+  eventId: string
+  studentId: string
+  registeredAt: string
+  attended: boolean
+}
+
+export interface ActivityLogItem {
+  id: string
+  timestamp: string
+  userEmail: string
+  userName: string
+  action:
+    | 'create'
+    | 'update'
+    | 'delete'
+    | 'bulk_delete'
+    | 'publish'
+    | 'cancel'
+    | 'suspend'
+    | 'reactivate'
+    | 'restore'
+  itemType:
+    | 'announcement'
+    | 'event'
+    | 'club'
+    | 'notification'
+    | 'location'
+    | 'facility'
+    | 'faculty'
+    | 'department'
+    | 'timetable'
+    | 'student'
+    | 'registration'
+  itemId: string
+  itemName: string
+  summary: string
+  previousData?: unknown
 }
 
 export interface NotificationPrefs {
@@ -175,3 +308,4 @@ export interface ToastMessage {
   type: ToastType
   message: string
 }
+

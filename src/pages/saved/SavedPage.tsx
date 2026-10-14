@@ -17,7 +17,7 @@ import { ClubCard } from '@/components/domain/ClubCard'
 import { LocationCard } from '@/components/domain/LocationCard'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
-import { LOCATIONS } from '@/data/locations'
+import { useContentStore } from '@/store/useContentStore'
 
 export const SavedPage: React.FC = () => {
   const navigate = useNavigate()
@@ -28,9 +28,11 @@ export const SavedPage: React.FC = () => {
     ['events', 'clubs', 'locations'].includes(initialTab) ? initialTab : 'events'
   )
 
+  const events = useContentStore((state) => state.events)
+  const clubs = useContentStore((state) => state.clubs)
+  const locations = useContentStore((state) => state.locations)
+
   const {
-    events,
-    clubs,
     registeredEventIds,
     joinedClubIds,
     savedLocationIds,
@@ -46,7 +48,7 @@ export const SavedPage: React.FC = () => {
 
   const registeredEvents = events.filter((e) => registeredEventIds.includes(e.id))
   const joinedClubs = clubs.filter((c) => joinedClubIds.includes(c.id))
-  const savedLocations = LOCATIONS.filter((l) => savedLocationIds.includes(l.id))
+  const savedLocations = locations.filter((l) => savedLocationIds.includes(l.id))
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)

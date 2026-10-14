@@ -17,8 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { computeFacilityStatus } from '@/components/domain/FacilityCard'
-import { FACILITIES } from '@/data/facilities'
-import { LOCATIONS } from '@/data/locations'
+import { useContentStore } from '@/store/useContentStore'
 import { useToastStore } from '@/store/useToastStore'
 import { cn } from '@/lib/utils'
 
@@ -39,8 +38,11 @@ export const FacilityDetailPage: React.FC = () => {
 
   const [copiedContact, setCopiedContact] = useState(false)
 
-  const facility = FACILITIES.find((f) => f.id === id)
-  const location = facility ? LOCATIONS.find((l) => l.id === facility.locationId) : null
+  const facilities = useContentStore((state) => state.facilities)
+  const locations = useContentStore((state) => state.locations)
+
+  const facility = facilities.find((f) => f.id === id)
+  const location = facility ? locations.find((l) => l.id === facility.locationId) : null
 
   if (!facility) {
     return (

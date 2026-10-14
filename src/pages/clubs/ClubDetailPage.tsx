@@ -18,13 +18,15 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { EventCard } from '@/components/domain/EventCard'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
-import { EVENTS } from '@/data/events'
+import { useContentStore } from '@/store/useContentStore'
 
 export const ClubDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { clubs, joinedClubIds, joinClub, leaveClub, registeredEventIds } = useUserStore()
+  const clubs = useContentStore((state) => state.clubs)
+  const events = useContentStore((state) => state.events)
+  const { joinedClubIds, joinClub, leaveClub, registeredEventIds } = useUserStore()
   const { push: pushToast } = useToastStore()
 
   const club = clubs.find((c) => c.id === id)
@@ -66,7 +68,9 @@ export const ClubDetailPage: React.FC = () => {
   }
 
   // Find linked upcoming events
-  const clubUpcomingEvents = EVENTS.filter((e) => club.upcomingEventIds.includes(e.id))
+  const clubUpcomingEvents = events.filter(
+    (e) => (club.upcomingEventIds && club.upcomingEventIds.includes(e.id)) || e.organizerClubId === club.id
+  )
 
   return (
     <div className="space-y-8 pb-16 text-left max-w-4xl mx-auto">

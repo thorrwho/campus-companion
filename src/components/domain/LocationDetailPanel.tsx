@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { useUserStore } from '@/store/useUserStore'
 import { useToastStore } from '@/store/useToastStore'
-import { LOCATIONS } from '@/data/locations'
+import { useContentStore } from '@/store/useContentStore'
 import { cn } from '@/lib/utils'
 
 interface LocationDetailPanelProps {
@@ -28,6 +28,7 @@ export const LocationDetailPanel: React.FC<LocationDetailPanelProps> = ({
 }) => {
   const { savedLocationIds, toggleSaveLocation } = useUserStore()
   const { push: pushToast } = useToastStore()
+  const allLocations = useContentStore((state) => state.locations)
 
   const isSaved = savedLocationIds.includes(location.id)
 
@@ -52,7 +53,7 @@ export const LocationDetailPanel: React.FC<LocationDetailPanelProps> = ({
   }
 
   // Find nearby locations in the same building or close by
-  const nearbyLocations = LOCATIONS.filter(
+  const nearbyLocations = allLocations.filter(
     (l) => l.id !== location.id && (l.building === location.building || l.type === location.type)
   ).slice(0, 3)
 

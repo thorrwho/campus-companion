@@ -8,9 +8,9 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { FacilityCard } from '@/components/domain/FacilityCard'
+import { useContentStore } from '@/store/useContentStore'
 import { useSimulatedLoad } from '@/hooks/useSimulatedLoad'
 import { useDebounce } from '@/hooks/useDebounce'
-import { FACILITIES } from '@/data/facilities'
 
 const FACILITY_TYPES = [
   { id: 'all', label: 'All Facilities' },
@@ -22,6 +22,7 @@ const FACILITY_TYPES = [
 ]
 
 export const FacilitiesPage: React.FC = () => {
+  const facilities = useContentStore((state) => state.facilities)
   const { isLoading, hasError, retry } = useSimulatedLoad({ duration: 500 })
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -30,7 +31,7 @@ export const FacilitiesPage: React.FC = () => {
   const [selectedType, setSelectedType] = useState<string>('all')
 
   const filteredFacilities = useMemo(() => {
-    return FACILITIES.filter((fac) => {
+    return facilities.filter((fac) => {
       // Type filter
       if (selectedType !== 'all') {
         const typeLower = fac.type.toLowerCase()
@@ -54,7 +55,7 @@ export const FacilitiesPage: React.FC = () => {
 
       return true
     })
-  }, [selectedType, debouncedSearch])
+  }, [facilities, selectedType, debouncedSearch])
 
   const clearFilters = () => {
     setSearchQuery('')

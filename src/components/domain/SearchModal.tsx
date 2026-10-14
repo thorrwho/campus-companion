@@ -13,12 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
-import { LOCATIONS } from '@/data/locations'
-import { EVENTS } from '@/data/events'
-import { ANNOUNCEMENTS } from '@/data/announcements'
-import { CLUBS } from '@/data/clubs'
-import { FACULTY } from '@/data/faculty'
-import { FACILITIES } from '@/data/facilities'
+import { useContentStore } from '@/store/useContentStore'
 import { cn } from '@/lib/utils'
 
 export type SearchCategory =
@@ -84,12 +79,19 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     }
   }, [isOpen])
 
+  const locations = useContentStore((state) => state.locations)
+  const events = useContentStore((state) => state.events)
+  const announcements = useContentStore((state) => state.announcements)
+  const clubs = useContentStore((state) => state.clubs)
+  const faculty = useContentStore((state) => state.faculty)
+  const facilities = useContentStore((state) => state.facilities)
+
   // Build searchable index from all data
   const allSearchItems = useMemo<SearchResultItem[]>(() => {
     const items: SearchResultItem[] = []
 
     // Locations
-    LOCATIONS.forEach((loc) => {
+    locations.forEach((loc) => {
       items.push({
         id: `loc-${loc.id}`,
         title: loc.name,
@@ -102,7 +104,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     })
 
     // Events
-    EVENTS.forEach((evt) => {
+    events.forEach((evt) => {
       items.push({
         id: `evt-${evt.id}`,
         title: evt.title,
@@ -115,7 +117,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     })
 
     // Announcements
-    ANNOUNCEMENTS.forEach((ann) => {
+    announcements.forEach((ann) => {
       items.push({
         id: `ann-${ann.id}`,
         title: ann.title,
@@ -128,7 +130,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     })
 
     // Clubs
-    CLUBS.forEach((clb) => {
+    clubs.forEach((clb) => {
       items.push({
         id: `clb-${clb.id}`,
         title: clb.name,
@@ -141,7 +143,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     })
 
     // Faculty
-    FACULTY.forEach((fac) => {
+    faculty.forEach((fac) => {
       items.push({
         id: `fac-${fac.id}`,
         title: fac.name,
@@ -154,7 +156,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     })
 
     // Facilities
-    FACILITIES.forEach((fcl) => {
+    facilities.forEach((fcl) => {
       items.push({
         id: `fcl-${fcl.id}`,
         title: fcl.name,
@@ -167,7 +169,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     })
 
     return items
-  }, [])
+  }, [locations, events, announcements, clubs, faculty, facilities])
 
   // Filter items based on query & category
   const filteredResults = useMemo(() => {

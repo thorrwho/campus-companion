@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
 import { SearchModal } from '@/components/domain/SearchModal'
+import { useAdminAuthStore } from '@/store/useAdminAuthStore'
 
 export const AppShell: React.FC = () => {
+  const navigate = useNavigate()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const { isViewingAsStudent, setViewAsStudent } = useAdminAuthStore()
 
   // Listen for Cmd+K / Ctrl+K keyboard shortcut
   useEffect(() => {
@@ -23,6 +26,28 @@ export const AppShell: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-canvas flex flex-col antialiased text-text-primary">
+      {/* Back to Admin Banner when admin views as student */}
+      {isViewingAsStudent && (
+        <div className="bg-primary-950 text-white px-4 py-2 flex items-center justify-between text-small border-b border-primary-800 shadow-sm sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-accent-400 animate-pulse" aria-hidden="true" />
+            <span className="font-medium text-xs sm:text-small">
+              Viewing student application as administrator
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setViewAsStudent(false)
+              navigate('/admin')
+            }}
+            className="px-3 py-1 bg-white text-primary-950 font-semibold rounded-button text-xs hover:bg-neutral-100 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-200"
+          >
+            Back to admin portal
+          </button>
+        </div>
+      )}
+
       {/* Skip to Content Link (Accessibility requirement) */}
       <a
         href="#main-content"

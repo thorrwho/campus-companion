@@ -15,16 +15,18 @@ import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useToastStore } from '@/store/useToastStore'
-import { FACULTY } from '@/data/faculty'
-import { LOCATIONS } from '@/data/locations'
-import { TIMETABLE_SLOTS } from '@/data/timetable'
+import { useContentStore } from '@/store/useContentStore'
 
 export const FacultyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { push: pushToast } = useToastStore()
 
-  const faculty = FACULTY.find((f) => f.id === id)
+  const facultyList = useContentStore((state) => state.faculty)
+  const locations = useContentStore((state) => state.locations)
+  const timetableSlots = useContentStore((state) => state.timetableSlots)
+
+  const faculty = facultyList.find((f) => f.id === id)
 
   if (!faculty) {
     return (
@@ -38,11 +40,13 @@ export const FacultyDetailPage: React.FC = () => {
     )
   }
 
-  const officeLocation = LOCATIONS.find((l) => l.id === faculty.officeLocationId)
+  const officeLocation = locations.find((l) => l.id === faculty.officeLocationId)
 
   // Find lectures taught by this professor
-  const lecturesTaught = TIMETABLE_SLOTS.filter(
-    (slot) => slot.faculty.toLowerCase().includes(faculty.name.split(' ')[1]?.toLowerCase() || '')
+  const lecturesTaught = timetableSlots.filter(
+    (slot) =>
+      slot.faculty === faculty.name ||
+      slot.faculty.toLowerCase().includes(faculty.name.split(' ')[1]?.toLowerCase() || '')
   )
 
   const handleCopyEmail = () => {
